@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>webrtc host</title>
+  </head>
+  <body>
+    <style>
+      * {
+        padding: 0;
+        margin: 0;
+      }
+
+      body {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgb(163, 231, 231);
+        flex-direction: column;
+      }
+      .sdp-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* border: 2px solid red; */
+        width: 50%;
+      }
+      .sdp-box input {
+        height: 100%;
+        width: 70%;
+      }
+
+      .chatbox {
+        height: 70%;
+        width: 50%;
+        border: 2px solid black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      .show-message {
+        border: 2px solid red;
+        background-color: aliceblue;
+        padding: 10px;
+        height: 90%;
+        width: 90%;
+        word-wrap: break-word;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column-reverse;
+      }
+      .message {
+        margin-bottom: 10px;
+      }
+      .write-box {
+        border: 1px solid blue;
+        display: flex;
+      }
+      .inputbox {
+        height: 60%;
+      }
+      button {
+        height: 50px;
+        width: 80px;
+      }
+    </style>
+
+    <div class="sdp-box">
+      <input
+        type="text"
+        id="sdp-content"
+        placeholder="  Put your sdp here..."
+      />
+      <button type="submit" onclick="setSdp()">Start</button>
+    </div>
+
+    <h1>HOST</h1>
+    <div class="chatbox">
+      <h3>message box</h3>
+      <div class="show-message"></div>
+      <div class="write-box">
+        <textarea
+          name="chatmessage"
+          id="chatmessage"
+          cols="45"
+          rows="3"
+          style="padding-top: 5px"
+        ></textarea>
+        <button type="submit" onclick="sendmessage()">send</button>
+      </div>
+    </div>
+
+    <script>
+      //accessing all the div
+      const sdpBox = document.querySelector("#sdp-content");
+      const messageShowBox = document.querySelector(".show-message");
+      const writeBox = document.querySelector("#chatmessage");
+
+      const config = {
+        iceServers: [{ urls: "stun:stun.l.google.com" }],
+      };
+
+      const localConnection = new RTCPeerConnection(config);
+
+      localConnection.onicecandidate = (e) => {
+        console.log(" NEW ice candidate!! on localconnection reprinting SDP ");
+        const sdp = JSON.stringify(localConnection.localDescription);
+        console.log(sdp);
+        messageShowBox.innerHTML = sdp + "<br>";
+      };
+
+      const sendChannel = localConnection.createDataChannel("sendChannel");
+      sendChannel.onmessage = (e) => {
+        // console.log("messsage received!!!" + e.data);
+
+        showMessage("Friend", e.data);
+      };
+
+      sendChannel.onopen = (e) => {
+        // console.log("open!!!!");
+        messageShowBox.innerHTML = "";
+        showMessage("", "Connection Opened!!");
+      };
+      sendChannel.onclose = (e) => {
+        // console.log("closed!!!!!!");
+        showMessage("", "Connection Closed!!");
+      };
+
+      localConnection
+        .createOffer()
+        .then((o) => localConnection.setLocalDescription(o));
+
+      function setSdp() {
+        const answer = sdpBox.value;
+        localConnection
+          .setRemoteDescription(JSON.parse(answer))
+          .then((e) => console.log("connection created successfully"));
+      }
+
+      writeBox.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          sendmessage();
+        }
+      });
+
+      function sendmessage() {
+        let message = writeBox.value;
+
+        if (message!=='' || message !== null) {
+          sendChannel.send(message);
+          showMessage("You", message);
+          // console.log(message);
+          writeBox.value = "";
+        }
+      }
+
+      function showMessage(heading, content) {
+        // Create a string containing the heading message wrapped in <strong> tag
+        var headingMessage =
+          "<strong style='font-size: larger;'>" + heading + ": </strong>";
+
+        var messageDiv = document.createElement("div");
+        messageDiv.classList.add("message");
+
+        messageDiv.innerHTML = headingMessage + content;
+
+        messageShowBox.prepend(messageDiv); // Append the message at the bottom
+
+        // Scroll to the bottom of the messageShowBox div to show the latest message
+        messageShowBox.scrollTop = messageShowBox.scrollHeight;
+      }
+    </script>
+  </body>
+</html>
